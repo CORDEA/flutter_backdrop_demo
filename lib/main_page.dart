@@ -20,7 +20,15 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage>
     with SingleTickerProviderStateMixin {
+  static const _PANEL_HEIGHT = 32.0;
+
   AnimationController _controller;
+
+  bool get _isPanelVisible {
+    final AnimationStatus status = _controller.status;
+    return status == AnimationStatus.completed ||
+        status == AnimationStatus.forward;
+  }
 
   @override
   void initState() {
@@ -32,12 +40,48 @@ class _MainPageState extends State<MainPage>
   @override
   void dispose() {
     super.dispose();
+    _controller.dispose();
   }
 
   Widget _buildStack(BuildContext context, BoxConstraints constraints) {
+    final Size panelSize = constraints.biggest;
+    final double top = panelSize.height - _PANEL_HEIGHT;
+    var animation = RelativeRectTween(
+            begin: new RelativeRect.fromLTRB(
+                0.0,
+                top - MediaQuery.of(context).padding.bottom,
+                0.0,
+                top - panelSize.height),
+            end: new RelativeRect.fromLTRB(0.0, 0.0, 0.0, 0.0))
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+
+    final ThemeData theme = Theme.of(context);
     return Container(
-      color: Theme.of(context).primaryColor,
-    );
+        color: theme.primaryColor,
+        child: Stack(children: <Widget>[
+          Center(
+            child: Text("base", style: theme.primaryTextTheme.display2),
+          ),
+          PositionedTransition(
+              rect: animation,
+              child: Material(
+                shape: BeveledRectangleBorder(
+                    borderRadius: const BorderRadius.only(
+                        topLeft: const Radius.circular(_PANEL_HEIGHT))),
+                elevation: 12.0,
+                child: Column(children: <Widget>[
+                  Container(
+                    height: _PANEL_HEIGHT,
+                    child: Center(child: Text("panel")),
+                  ),
+                  Divider(height: 1.0),
+                  Expanded(
+                      child: Center(
+                          child:
+                              Text("content", style: theme.textTheme.display2)))
+                ]),
+              ))
+        ]));
   }
 
   @override
@@ -52,9 +96,12 @@ class _MainPageState extends State<MainPage>
         appBar: new AppBar(
           // Here we take the value from the MyHomePage object that was created by
           // the App.build method, and use it to set our appbar title.
+          elevation: 0.0,
           title: new Text(widget.title),
           leading: IconButton(
-            onPressed: () {},
+            onPressed: () {
+              _controller.fling(velocity: _isPanelVisible ? -1.0 : 1.0);
+            },
             icon: AnimatedIcon(
               icon: AnimatedIcons.close_menu,
               progress: _controller.view,
